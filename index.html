@@ -438,10 +438,12 @@ PC: 52 cm"></textarea>
     function referenceLink(refUsada, tipo) {
       if (refUsada === "OMS") {
         if (tipo === "PC") return "https://www.who.int/tools/child-growth-standards/standards/head-circumference-for-age";
-        if (tipo === "Estatura") return "https://www.who.int/tools/child-growth-standards/standards/height-for-age";
+        if (tipo === "Estatura") return "https://www.who.int/tools/child-growth-standards/standards/length-height-for-age";
+        if (tipo === "IMC") return "https://www.who.int/toolkits/child-growth-standards/standards/body-mass-index-for-age-bmi-for-age";
         return "https://www.who.int/tools/child-growth-standards/standards/weight-for-age";
       }
       if (refUsada === "CDC") {
+        if (tipo === "IMC") return "https://www.cdc.gov/growthcharts/extended-bmi-data-files.htm";
         return "https://www.cdc.gov/growthcharts/clinical_charts.htm";
       }
       if (refUsada === "Nellhaus") {
@@ -455,7 +457,7 @@ PC: 52 cm"></textarea>
         return {
           tipo: 'SIMPLES',
           Mean: c2,
-          SD: c3 !== null ? c3 / 100 : null
+          SD: c3 !== null ? c3 / 200 : null
         };
       }
       if (c3 === null || c1 > 5) {
@@ -469,7 +471,8 @@ PC: 52 cm"></textarea>
           tipo: 'LMS',
           L: c1,
           M: c2,
-          S: c3
+          S: c3,
+          isCDC: sheetName.includes('_CDC')
         };
       }
     }
@@ -563,7 +566,9 @@ PC: 52 cm"></textarea>
         pontos.push({
           mes: mes,
           p3: zToValue(-1.88, tabela),
+          p15: zToValue(-1.036, tabela),
           p50: zToValue(0, tabela),
+          p85: zToValue(1.036, tabela),
           p97: zToValue(1.88, tabela)
         });
       }
@@ -594,8 +599,31 @@ PC: 52 cm"></textarea>
         if (!M || !S) return null;
         let actualS = S;
         if (S > 0.5 && M > 0) actualS = S / M;
-        if (L === 0) return Math.log(value / M) / actualS;
-        return (Math.pow((value / M), L) - 1) / (L * actualS);
+        
+        let z_ind;
+        if (L === 0) z_ind = Math.log(value / M) / actualS;
+        else z_ind = (Math.pow((value / M), L) - 1) / (L * actualS);
+        
+        if (Math.abs(z_ind) <= 3 || dataTabela.isCDC) return z_ind;
+        
+        let sd3pos, sd2pos, sd3neg, sd2neg;
+        if (L === 0) {
+          sd3pos = M * Math.exp(actualS * 3);
+          sd2pos = M * Math.exp(actualS * 2);
+          sd3neg = M * Math.exp(actualS * -3);
+          sd2neg = M * Math.exp(actualS * -2);
+        } else {
+          sd3pos = M * Math.pow(1 + L * actualS * 3, 1 / L);
+          sd2pos = M * Math.pow(1 + L * actualS * 2, 1 / L);
+          sd3neg = M * Math.pow(1 + L * actualS * -3, 1 / L);
+          sd2neg = M * Math.pow(1 + L * actualS * -2, 1 / L);
+        }
+        
+        if (z_ind > 3) {
+          return 3 + (value - sd3pos) / (sd3pos - sd2pos);
+        } else {
+          return -3 + (value - sd3neg) / (sd2neg - sd3neg);
+        }
       }
     }
 
@@ -611,8 +639,30 @@ PC: 52 cm"></textarea>
         if (!M || !S) return null;
         let actualS = S;
         if (S > 0.5 && M > 0) actualS = S / M;
-        if (L === 0) return M * Math.exp(actualS * z);
-        return M * Math.pow(1 + L * actualS * z, 1 / L);
+        
+        if (Math.abs(z) <= 3 || dataTabela.isCDC) {
+          if (L === 0) return M * Math.exp(actualS * z);
+          return M * Math.pow(1 + L * actualS * z, 1 / L);
+        }
+        
+        let sd3pos, sd2pos, sd3neg, sd2neg;
+        if (L === 0) {
+          sd3pos = M * Math.exp(actualS * 3);
+          sd2pos = M * Math.exp(actualS * 2);
+          sd3neg = M * Math.exp(actualS * -3);
+          sd2neg = M * Math.exp(actualS * -2);
+        } else {
+          sd3pos = M * Math.pow(1 + L * actualS * 3, 1 / L);
+          sd2pos = M * Math.pow(1 + L * actualS * 2, 1 / L);
+          sd3neg = M * Math.pow(1 + L * actualS * -3, 1 / L);
+          sd2neg = M * Math.pow(1 + L * actualS * -2, 1 / L);
+        }
+        
+        if (z > 3) {
+          return sd3pos + (z - 3) * (sd3pos - sd2pos);
+        } else {
+          return sd3neg + (z + 3) * (sd2neg - sd3neg);
+        }
       }
     }
 
@@ -735,6 +785,12 @@ PC: 52 cm"></textarea>
         }
       }
 
+      let imcVal = null;
+      if (pesoVal !== null && estVal !== null && estVal > 0) {
+        imcVal = pesoVal / Math.pow(estVal / 100, 2);
+        imcVal = parseFloat(imcVal.toFixed(2));
+      }
+
       const prefix = sexo === 'M' ? 'M_' : 'F_';
       let output = '';
       const medidas = [];
@@ -818,20 +874,37 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
       medidas.push({ tipo: tipo, valor: valor, unidade: unidade, z: null, percentil: "N/D", refUsada: null, isExtrapolado: false, link: null, curva: [] });
       return `${rotulo}: ${valor} ${unidade} (Referência não disponível)\n`;
     }
+      let forceCDC = false;
+      if (pesoVal !== null && mesesIdade > 120) forceCDC = true;
+      if (estVal !== null && mesesIdade > 228) forceCDC = true;
+      if (imcVal !== null && mesesIdade > 228) forceCDC = true;
+
       if (pesoVal !== null) {
-        output += processMedida("P", "Peso", pesoVal, "kg", [
+        let tentPeso = [
           { sheet: prefix + "Peso", ref: "OMS" },
           { sheet: prefix + "Peso_CDC", ref: "CDC" }
-        ]);
+        ];
+        if (forceCDC) tentPeso.reverse();
+        output += processMedida("P", "Peso", pesoVal, "kg", tentPeso);
       }
 
       if (estVal !== null) {
-        output += processMedida("E", "Estatura", estVal, "cm", [
+        let tentEst = [
           { sheet: prefix + "Estatura", ref: "OMS" },
           { sheet: prefix + "Estatura_CDC", ref: "CDC" }
-        ]);
+        ];
+        if (forceCDC) tentEst.reverse();
+        output += processMedida("E", "Estatura", estVal, "cm", tentEst);
       }
 
+      if (imcVal !== null) {
+        let tentIMC = [
+          { sheet: prefix + "IMC", ref: "OMS" },
+          { sheet: prefix + "IMC_CDC", ref: "CDC" }
+        ];
+        if (forceCDC) tentIMC.reverse();
+        output += processMedida("IMC", "IMC", imcVal, "kg/m²", tentIMC);
+      }
       if (pcVal !== null) {
         output += processMedida("PC", "Perímetro Cefálico", pcVal, "cm", [
           { sheet: prefix + "PC", ref: "OMS" },
@@ -963,15 +1036,20 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
       const corPonto = foraDaFaixa ? 'var(--warning)' : 'var(--danger)';
 
       const svg = `
-        <svg viewBox="0 0 ${width} ${height}" width="100%" style="display:block;">
+        <svg viewBox="0 0 ${width} ${height}" width="100%" style="display:block; cursor:crosshair;"
+             data-curva='${JSON.stringify(curva).replace(/'/g, "&apos;")}' 
+             data-xmin="${xMin}" data-xmax="${xMax}" data-ymin="${yMin}" data-ymax="${yMax}"
+             onmousemove="handleChartHover(event, this)" onmouseleave="handleChartLeave(this)">
           <rect x="0" y="0" width="${width}" height="${height}" fill="#f8fafc" rx="4"/>
           <rect x="${padX}" y="${padY}" width="${width - 2*padX}" height="${height - 2*padY}" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
           
           <line x1="${padX}" y1="${mapY((yMin+yMax)/2)}" x2="${width-padX}" y2="${mapY((yMin+yMax)/2)}" stroke="#f1f5f9" stroke-width="1"/>
           
-          <path d="${pathFor('p3')}" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <path d="${pathFor('p3')}" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+          <path d="${pathFor('p15')}" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
           <path d="${pathFor('p50')}" fill="none" stroke="#3b82f6" stroke-width="2"/>
-          <path d="${pathFor('p97')}" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <path d="${pathFor('p85')}" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <path d="${pathFor('p97')}" fill="none" stroke="#cbd5e1" stroke-width="1"/>
           
           <line x1="${px.toFixed(1)}" y1="${padY}" x2="${px.toFixed(1)}" y2="${height - padY}" stroke="${corPonto}" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
           <line x1="${padX}" y1="${py.toFixed(1)}" x2="${width - padX}" y2="${py.toFixed(1)}" stroke="${corPonto}" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
@@ -980,9 +1058,11 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
           <text x="${padX}" y="${height - 8}" font-size="10" fill="#64748b" font-weight="600">${xMin}m</text>
           <text x="${width - padX - 24}" y="${height - 8}" font-size="10" fill="#64748b" font-weight="600">${xMax}m</text>
           
-          <text x="${padX - 28}" y="${mapY(curva[0].p97) + 3}" font-size="9" fill="#64748b" font-weight="600">p97</text>
+          <text x="${padX - 28}" y="${mapY(curva[0].p97) + 3}" font-size="9" fill="#cbd5e1" font-weight="600">p97</text>
+          <text x="${padX - 28}" y="${mapY(curva[0].p85) + 3}" font-size="9" fill="#94a3b8" font-weight="600">p85</text>
           <text x="${padX - 28}" y="${mapY(curva[0].p50) + 3}" font-size="9" fill="#3b82f6" font-weight="700">p50</text>
-          <text x="${padX - 28}" y="${mapY(curva[0].p3) + 3}" font-size="9" fill="#64748b" font-weight="600">p3</text>
+          <text x="${padX - 28}" y="${mapY(curva[0].p15) + 3}" font-size="9" fill="#94a3b8" font-weight="600">p15</text>
+          <text x="${padX - 28}" y="${mapY(curva[0].p3) + 3}" font-size="9" fill="#cbd5e1" font-weight="600">p3</text>
         </svg>
       `;
 
@@ -991,6 +1071,98 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
         : 'Ponto marcador: paciente. Linha azul: mediana (p50). Linhas tracejadas: percentis 3 e 97.';
 
       return svg + `<div class="curve-caption">${legenda}</div>`;
+    }
+
+    function handleChartHover(event, svgElement) {
+      const rect = svgElement.getBoundingClientRect();
+      const width = 560, height = 220, padX = 40, padY = 28;
+      const scaleX = width / rect.width;
+      const mouseX = (event.clientX - rect.left) * scaleX;
+      
+      if (mouseX < padX || mouseX > width - padX) {
+        handleChartLeave(svgElement);
+        return;
+      }
+      
+      const xMin = parseFloat(svgElement.getAttribute('data-xmin'));
+      const xMax = parseFloat(svgElement.getAttribute('data-xmax'));
+      const mesAtMouse = xMin + ((mouseX - padX) / (width - 2 * padX)) * (xMax - xMin);
+      
+      const curva = JSON.parse(svgElement.getAttribute('data-curva').replace(/&apos;/g, "'"));
+      let left = curva[0], right = curva[curva.length - 1];
+      for(let i=0; i<curva.length-1; i++) {
+        if(mesAtMouse >= curva[i].mes && mesAtMouse <= curva[i+1].mes) {
+          left = curva[i];
+          right = curva[i+1];
+          break;
+        }
+      }
+      
+      const t = (mesAtMouse - left.mes) / (right.mes - left.mes || 1);
+      const lerp = (key) => left[key] + t * (right[key] - left[key]);
+      
+      const p3 = lerp('p3');
+      const p15 = lerp('p15');
+      const p50 = lerp('p50');
+      const p85 = lerp('p85');
+      const p97 = lerp('p97');
+      
+      let tooltip = svgElement.querySelector('.chart-tooltip');
+      let crosshair = svgElement.querySelector('.chart-crosshair');
+      
+      if (!tooltip) {
+        crosshair = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        crosshair.setAttribute("class", "chart-crosshair");
+        crosshair.setAttribute("y1", padY);
+        crosshair.setAttribute("y2", height - padY);
+        crosshair.setAttribute("stroke", "#64748b");
+        crosshair.setAttribute("stroke-width", "1");
+        crosshair.setAttribute("stroke-dasharray", "2 2");
+        svgElement.appendChild(crosshair);
+
+        tooltip = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        tooltip.setAttribute("class", "chart-tooltip");
+        
+        const rectBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rectBg.setAttribute("fill", "rgba(255, 255, 255, 0.95)");
+        rectBg.setAttribute("stroke", "#cbd5e1");
+        rectBg.setAttribute("rx", "4");
+        rectBg.setAttribute("width", "100");
+        rectBg.setAttribute("height", "84");
+        tooltip.appendChild(rectBg);
+        
+        const textGroup = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        textGroup.setAttribute("font-family", "sans-serif");
+        textGroup.setAttribute("font-size", "10");
+        textGroup.setAttribute("fill", "#334155");
+        tooltip.appendChild(textGroup);
+        
+        svgElement.appendChild(tooltip);
+      }
+      
+      crosshair.setAttribute("x1", mouseX);
+      crosshair.setAttribute("x2", mouseX);
+      
+      const textGroup = tooltip.querySelector("text");
+      textGroup.innerHTML = `
+        <tspan x="6" dy="14" font-weight="bold">${mesAtMouse.toFixed(1)} meses</tspan>
+        <tspan x="6" dy="13" fill="#64748b">p97: ${p97.toFixed(2)}</tspan>
+        <tspan x="6" dy="12" fill="#64748b">p85: ${p85.toFixed(2)}</tspan>
+        <tspan x="6" dy="12" font-weight="bold" fill="#3b82f6">p50: ${p50.toFixed(2)}</tspan>
+        <tspan x="6" dy="12" fill="#64748b">p15: ${p15.toFixed(2)}</tspan>
+        <tspan x="6" dy="12" fill="#64748b">p3: ${p3.toFixed(2)}</tspan>
+      `;
+      
+      let toolX = mouseX + 10;
+      if (toolX + 100 > width - 10) toolX = mouseX - 110;
+      tooltip.setAttribute("transform", `translate(${toolX}, ${padY + 10})`);
+    }
+
+    function handleChartLeave(svgElement) {
+      const tooltip = svgElement.querySelector('.chart-tooltip');
+      const crosshair = svgElement.querySelector('.chart-crosshair');
+      if (tooltip) tooltip.remove();
+      if (crosshair) crosshair.remove();
     }
   </script>
 
