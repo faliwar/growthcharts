@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<!-- saved from url=(0036)https://fabianoposwar.com/percentis/ -->
+<html lang="pt-BR"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora Antropométrica — OMS, CDC &amp; Nellhaus</title>
+  <style>
+    :root {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --primary: #1e3a8a;
+      --primary-hover: #172554;
+      --primary-rgb: 30, 58, 138;
+      --success: #15803d;
+      --success-hover: #166534;
+      --warning: #b45309;
+      --danger: #b91c1c;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --border: #cbd5e1;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.5;
+      padding: 24px 16px;
+      transition: background-color 0.2s ease;
+    }
+
+    /* Tema visual conforme o sexo selecionado — nenhum é o padrão */
+    body.tema-masculino {
+      background-color: #dbeafe; /* azul bebê */
+    }
+    body.tema-feminino {
+      background-color: #fce7f3; /* rosa bebê */
+      --primary: #9d174d;       /* rosa escuro, no lugar do azul escuro */
+      --primary-hover: #831843; /* rosa escuro mais intenso, no hover */
+      --primary-rgb: 157, 23, 77;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .card {
+      background: var(--card-bg);
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e2e8f0;
+      margin-bottom: 20px;
+    }
+
+    .status-banner {
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .status-loading { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .status-ready { display: none; } /* Hidden when ready to keep it clean */
+    .status-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .form-group { margin-bottom: 16px; }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.88rem;
+      margin-bottom: 4px;
+      color: #334155;
+    }
+
+    .hint {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.88rem;
+      color: var(--text-main);
+      background-color: #f8fafc;
+      transition: border-color 0.1s, box-shadow 0.1s;
+      resize: none; /* No resize to keep layout locked and tidy */
+    }
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+      background-color: #fff;
+    }
+
+
+
+    .radio-group {
+      display: flex;
+      gap: 16px;
+      padding: 2px 0;
+    }
+
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .radio-label input[type="radio"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    button {
+      flex: 1;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background-color 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    button:hover { background-color: var(--primary-hover); }
+    button:disabled { background-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
+    
+    button.copy-btn { background-color: var(--success); }
+    button.copy-btn:hover { background-color: var(--success-hover); }
+
+    .result-area {
+      margin-top: 20px;
+      display: none;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+
+    .result-area textarea {
+      background-color: #f1f5f9;
+      font-weight: 500;
+      color: #0f172a;
+    }
+
+    .error-msg {
+      color: var(--danger);
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 12px;
+      display: none;
+      padding: 8px 12px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 4px;
+    }
+
+    /* Feedback Visual / Gráficos */
+    .feedback-area {
+      margin-top: 24px;
+      display: none;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+    .feedback-area h3 {
+      font-size: 1rem;
+      color: var(--text-main);
+      margin-bottom: 12px;
+    }
+    .idade-info {
+      background: #f1f5f9;
+      border-left: 3px solid var(--primary);
+      padding: 10px 12px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      font-size: 0.88rem;
+      color: #334155;
+    }
+    .medida-box {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .medida-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .medida-titulo {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .medida-badge {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .badge-normal { background: #e2e8f0; color: #334155; }
+    .badge-extrapolado { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    
+    .ref-link {
+      display: inline-flex;
+      font-size: 0.78rem;
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+      margin-bottom: 10px;
+    }
+    .ref-link:hover { text-decoration: underline; }
+    
+    .chart-container {
+      background: #f8fafc;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+    }
+    .curve-caption {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      line-height: 1.3;
+    }
+
+    .file-input-wrapper {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      background: #fef3c7;
+      border: 1px dashed #d97706;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 12px 8px; }
+      .card { padding: 16px; }
+      .btn-group { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1>Calculadora de Crescimento</h1>
+      <p>Análise Antropométrica (OMS, CDC &amp; Nellhaus)</p>
+    </div>
+
+    <div class="card">
+      <!-- Status de Carregamento -->
+      <div id="db-status" class="status-ready">
+        <span>Aguardando inicialização do arquivo dados_percentis.json...</span>
+      </div>
+
+      <!-- Fallback CORS local -->
+      <div id="file-fallback" class="file-input-wrapper">
+        <p><strong>Aviso de CORS:</strong> Para uso local direto do arquivo, selecione o arquivo <code>dados_percentis.json</code>:</p>
+        <input type="file" id="json-file-input" accept=".json" style="margin-top: 6px;">
+      </div>
+
+      <div class="form-group">
+        <label>Sexo: <span style="color: var(--danger); font-weight: 700;">*</span></label>
+        <div class="radio-group">
+          <label class="radio-label"><input type="radio" name="sexo" value="M" onchange="atualizarTemaSexo()"> Masculino</label>
+          <label class="radio-label"><input type="radio" name="sexo" value="F" onchange="atualizarTemaSexo()"> Feminino</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="dataRef">Data das Medidas:</label>
+        <textarea id="dataRef" rows="1" placeholder="DD/MM/AAAA"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="paciente">Data de Nascimento:</label>
+        <textarea id="paciente" rows="2" placeholder="Cole a data de nascimento ou qualquer texto que a contenha. A data de nascimento (ex: DD/MM/AAAA) será detectada automaticamente."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="antropo">Medidas Antropométricas:</label>
+        <textarea id="antropo" rows="3" placeholder="P: 32 kg
+E: 135 cm
+PC: 52 cm"></textarea>
+      </div>
+
+      <div id="error-msg" class="error-msg"></div>
+
+      <div class="btn-group">
+        <button id="calc-btn" onclick="processData()">Processar Dados</button>
+      </div>
+
+      <div class="result-area" id="result-area">
+        <label for="output">Dados Processados para Prontuário:</label>
+        <textarea id="output" rows="3" readonly=""></textarea>
+        <div class="btn-group" style="margin-top: 10px;">
+          <button class="copy-btn" onclick="copyOutput()">Copiar Resultado</button>
+        </div>
+      </div>
+
+      <!-- Análise Estatística / Gráficos -->
+      <div class="feedback-area" id="feedback-area"></div>
+    </div>
+  </div>
+
+  <script>
+    let DB_PERCENTIS = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadDatabase();
+
+      // Data das medidas: padrão é hoje, em texto colável/editável
+      const dataRefInput = document.getElementById('dataRef');
+      const hoje = new Date();
+      const hojeTexto = String(hoje.getDate()).padStart(2, '0') + '/' +
+        String(hoje.getMonth() + 1).padStart(2, '0') + '/' +
+        hoje.getFullYear();
+      dataRefInput.value = hojeTexto;
+
+      document.getElementById('json-file-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          try {
+            DB_PERCENTIS = JSON.parse(evt.target.result);
+            setDbStatus('ready', '');
+            document.getElementById('file-fallback').style.display = 'none';
+          } catch (err) {
+            setDbStatus('error', 'Erro na leitura do JSON: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+      });
+    });
+
+    function setDbStatus(type, message) {
+      const banner = document.getElementById('db-status');
+      const btn = document.getElementById('calc-btn');
+      
+      if (type === 'ready') {
+        banner.className = 'status-ready';
+        btn.disabled = false;
+      } else {
+        banner.className = 'status-banner status-' + type;
+        banner.innerHTML = '<span>' + message + '</span>';
+        btn.disabled = true;
+      }
+    }
+
+    async function loadDatabase() {
+      try {
+        const response = await fetch('dados_percentis.json');
+        if (!response.ok) throw new Error('Status ' + response.status);
+        DB_PERCENTIS = await response.json();
+        setDbStatus('ready', '');
+      } catch (error) {
+        if (window.location.protocol === 'file:') {
+          setDbStatus('error', 'Necessário selecionar o arquivo dados_percentis.json manualmente para execução local:');
+          document.getElementById('file-fallback').style.display = 'block';
+        } else {
+          setDbStatus('error', 'Erro ao carregar dados_percentis.json. Verifique o arquivo no servidor.');
+        }
+      }
+    }
+
+    function parseNum(val) {
+      if (val === null || val === undefined || val === '') return null;
+      if (typeof val === 'number') return val;
+      const parsed = parseFloat(val.toString().trim().replace(',', '.'));
+      return isNaN(parsed) ? null : parsed;
+    }
+
+    function formatZ(z) {
+      if (z === null || isNaN(z)) return "N/D";
+      return (z > 0 ? '+' : '') + z.toFixed(2);
+    }
+
+    function formatIdade(meses) {
+      const anos = Math.floor(meses / 12);
+      const restoMeses = meses % 12;
+      const partes = [];
+      if (anos > 0) partes.push(anos + (anos === 1 ? " ano" : " anos"));
+      if (restoMeses > 0 || anos === 0) partes.push(restoMeses + (restoMeses === 1 ? " mês" : " meses"));
+      return partes.join(" e ");
+    }
+
+    function referenceLink(refUsada, tipo) {
+      if (refUsada === "OMS") {
+        if (tipo === "PC") return "https://www.who.int/tools/child-growth-standards/standards/head-circumference-for-age";
+        if (tipo === "Estatura") return "https://www.who.int/tools/child-growth-standards/standards/height-for-age";
+        return "https://www.who.int/tools/child-growth-standards/standards/weight-for-age";
+      }
+      if (refUsada === "CDC") {
+        return "https://www.cdc.gov/growthcharts/clinical_charts.htm";
+      }
+      if (refUsada === "Nellhaus") {
+        return "https://doi.org/10.1542/peds.41.1.106";
+      }
+      return null;
+    }
+
+    function classifyRow(sheetName, c1, c2, c3) {
+      if (sheetName.endsWith("_EXT")) {
+        return {
+          tipo: 'SIMPLES',
+          Mean: c2,
+          SD: c3 !== null ? c3 / 100 : null
+        };
+      }
+      if (c3 === null || c1 > 5) {
+        return {
+          tipo: 'SIMPLES',
+          Mean: c1,
+          SD: c2
+        };
+      } else {
+        return {
+          tipo: 'LMS',
+          L: c1,
+          M: c2,
+          S: c3
+        };
+      }
+    }
+
+    function getLmsFromTable(sheetName, targetMonth, allowExtrapolate = false) {
+      const data = DB_PERCENTIS[sheetName];
+      if (!data || !Array.isArray(data) || data.length === 0) return null;
+
+      let closestRow = null;
+      let minDiff = Infinity;
+      let maxMonthRow = null;
+      let maxMonth = -Infinity;
+      let minMonthRow = null;
+      let minMonth = Infinity;
+
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const month = parseNum(row[0]);
+        if (month === null) continue;
+
+        if (month > maxMonth) { maxMonth = month; maxMonthRow = row; }
+        if (month < minMonth) { minMonth = month; minMonthRow = row; }
+
+        const diff = Math.abs(month - targetMonth);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestRow = row;
+        }
+      }
+
+	if (!allowExtrapolate) {
+        // Sem tolerância de +6 ou -6 meses: se passou do limite da tabela, aborta na hora!
+        if (targetMonth > maxMonth || targetMonth < minMonth) return null;
+      } else {
+        if (maxMonthRow !== null && targetMonth > maxMonth) {
+          closestRow = maxMonthRow;
+          minDiff = 0;
+        }
+        if (minMonthRow !== null && targetMonth < minMonth) {
+          closestRow = minMonthRow;
+          minDiff = 0;
+        }
+      }
+
+      if (closestRow && minDiff <= 6) {
+        const c1 = parseNum(closestRow[1]);
+        const c2 = parseNum(closestRow[2]);
+        const c3 = parseNum(closestRow[3]);
+        const result = classifyRow(sheetName, c1, c2, c3);
+        result.isExtrapolado = (targetMonth > maxMonth || targetMonth < minMonth);
+        result.maxMonth = maxMonth;
+        result.minMonth = minMonth;
+        return result;
+      }
+      return null;
+    }
+
+    function getTableRange(sheetName) {
+      const data = DB_PERCENTIS[sheetName];
+      if (!data || !Array.isArray(data) || data.length === 0) return null;
+
+      let maxMonth = -Infinity;
+      let minMonth = Infinity;
+
+      for (let i = 0; i < data.length; i++) {
+        const month = parseNum(data[i][0]);
+        if (month === null) continue;
+        if (month > maxMonth) maxMonth = month;
+        if (month < minMonth) minMonth = month;
+      }
+
+      if (!isFinite(maxMonth) || !isFinite(minMonth)) return null;
+      return { min: minMonth, max: maxMonth };
+    }
+
+    function getCurveFromTable(sheetName) {
+      const data = DB_PERCENTIS[sheetName];
+      if (!data) return [];
+      const pontos = [];
+
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const mes = parseNum(row[0]);
+        if (mes === null) continue;
+
+        const c1 = parseNum(row[1]);
+        const c2 = parseNum(row[2]);
+        const c3 = parseNum(row[3]);
+        const tabela = classifyRow(sheetName, c1, c2, c3);
+
+        pontos.push({
+          mes: mes,
+          p3: zToValue(-1.88, tabela),
+          p50: zToValue(0, tabela),
+          p97: zToValue(1.88, tabela)
+        });
+      }
+
+      pontos.sort((a, b) => a.mes - b.mes);
+
+      const MAX_PONTOS = 45;
+      if (pontos.length <= MAX_PONTOS) return pontos;
+
+      const passo = Math.ceil(pontos.length / MAX_PONTOS);
+      const reduzido = [];
+      for (let i = 0; i < pontos.length; i += passo) reduzido.push(pontos[i]);
+      if (reduzido[reduzido.length - 1] !== pontos[pontos.length - 1]) {
+        reduzido.push(pontos[pontos.length - 1]);
+      }
+      return reduzido;
+    }
+
+    function calculateZ(value, dataTabela) {
+      if (!dataTabela) return null;
+      if (dataTabela.tipo === 'SIMPLES') {
+        if (!dataTabela.Mean || !dataTabela.SD) return null;
+        return (value - dataTabela.Mean) / dataTabela.SD;
+      } else {
+        const L = dataTabela.L !== null ? dataTabela.L : 1;
+        const M = dataTabela.M;
+        const S = dataTabela.S;
+        if (!M || !S) return null;
+        let actualS = S;
+        if (S > 0.5 && M > 0) actualS = S / M;
+        if (L === 0) return Math.log(value / M) / actualS;
+        return (Math.pow((value / M), L) - 1) / (L * actualS);
+      }
+    }
+
+    function zToValue(z, dataTabela) {
+      if (!dataTabela) return null;
+      if (dataTabela.tipo === 'SIMPLES') {
+        if (dataTabela.Mean === null || dataTabela.SD === null) return null;
+        return dataTabela.Mean + z * dataTabela.SD;
+      } else {
+        const L = dataTabela.L !== null ? dataTabela.L : 1;
+        const M = dataTabela.M;
+        const S = dataTabela.S;
+        if (!M || !S) return null;
+        let actualS = S;
+        if (S > 0.5 && M > 0) actualS = S / M;
+        if (L === 0) return M * Math.exp(actualS * z);
+        return M * Math.pow(1 + L * actualS * z, 1 / L);
+      }
+    }
+
+    function zToPercentile(z) {
+      if (z === null || isNaN(z)) return "N/D";
+      const p = 0.3275911;
+      const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+      const sign = (z < 0) ? -1 : 1;
+      const x = Math.abs(z) / Math.sqrt(2.0);
+      const t = 1.0 / (1.0 + p * x);
+      const erf = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+      const percentile = 0.5 * (1.0 + sign * erf) * 100;
+
+      const rounded = Math.round(percentile);
+      if (rounded <= 0) return "p<1";
+      if (rounded >= 100) return "p>99";
+      return "p" + rounded;
+    }
+
+    function atualizarTemaSexo() {
+      const sexoSelecionado = document.querySelector('input[name="sexo"]:checked');
+      document.body.classList.remove('tema-masculino', 'tema-feminino');
+      if (!sexoSelecionado) return;
+      if (sexoSelecionado.value === 'M') {
+        document.body.classList.add('tema-masculino');
+      } else if (sexoSelecionado.value === 'F') {
+        document.body.classList.add('tema-feminino');
+      }
+    }
+
+    function processData() {
+      const errorDiv = document.getElementById('error-msg');
+      errorDiv.style.display = 'none';
+      errorDiv.innerText = '';
+      document.getElementById('result-area').style.display = 'none';
+      document.getElementById('feedback-area').style.display = 'none';
+
+      if (!DB_PERCENTIS) {
+        errorDiv.innerText = 'Banco de dados não disponível.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      const sexoSelecionado = document.querySelector('input[name="sexo"]:checked');
+      if (!sexoSelecionado) {
+        errorDiv.innerText = 'Selecione o sexo do paciente antes de calcular.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      const sexo = sexoSelecionado.value;
+      const pacienteText = document.getElementById('paciente').value;
+      const antropoText = document.getElementById('antropo').value;
+
+      if (!pacienteText.trim() || !antropoText.trim()) {
+        errorDiv.innerText = 'Preencha os dados do paciente e as medidas antropométricas.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      const dataRefValue = document.getElementById('dataRef').value;
+      const dataRefMatch = dataRefValue.match(/(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})/);
+      if (!dataRefMatch) {
+        errorDiv.innerText = 'Informe a data das medidas em um formato reconhecível (ex: DD/MM/AAAA).';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      const refDia = parseInt(dataRefMatch[1], 10);
+      const refMes = parseInt(dataRefMatch[2], 10);
+      let refAno = parseInt(dataRefMatch[3], 10);
+      if (refAno < 100) refAno += (refAno > 50 ? 1900 : 2000);
+      if (refDia < 1 || refDia > 31 || refMes < 1 || refMes > 12) {
+        errorDiv.innerText = 'Data das medidas inválida. Verifique o dia e o mês informados.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      const dataReferencia = new Date(refAno, refMes - 1, refDia);
+
+      const dataNascMatch = pacienteText.match(/(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})/);
+      let mesesIdade = 156;
+
+      if (dataNascMatch) {
+        const dia = parseInt(dataNascMatch[1], 10);
+        const mes = parseInt(dataNascMatch[2], 10);
+        let ano = parseInt(dataNascMatch[3], 10);
+        if (ano < 100) ano += (ano > 50 ? 1900 : 2000);
+
+        if (dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12) {
+          const birthDate = new Date(ano, mes - 1, dia);
+          const today = dataReferencia;
+          let months = (today.getFullYear() - birthDate.getFullYear()) * 12;
+          months -= birthDate.getMonth();
+          months += today.getMonth();
+          if (today.getDate() < birthDate.getDate() - 15) months -= 1;
+          mesesIdade = Math.max(0, Math.round(months));
+        }
+      }
+
+      const pesoRegex = /\b(?:Peso|P)\b(?:\s*\(\s*kg\s*\))?\s*:?\s*([\d,.]+)\s*(?:kg)?/i;
+      const estRegex = /\b(?:Altura|Estatura|Comprimento|Alt|Est|Compr|E|C)\b(?:\s*\(\s*(?:cm|m)\s*\))?\s*:?\s*([\d,.]+)\s*(cm|m)?/i;
+      const pcRegex = /\b(?:P(?:er[ií]metro\s*)?C(?:efálico|efalico)?|PC)\b(?:\s*\(\s*cm\s*\))?\s*:?\s*([\d,.]+)\s*(?:cm)?/i;
+
+      const pesoMatch = antropoText.match(pesoRegex);
+      const estMatch = antropoText.match(estRegex);
+      const pcMatch = antropoText.match(pcRegex);
+
+      if (!pesoMatch && !estMatch && !pcMatch) {
+        errorDiv.innerText = 'Nenhuma medida detectada nos dados inseridos.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      const pesoVal = pesoMatch ? parseNum(pesoMatch[1]) : null;
+      let estVal = estMatch ? parseNum(estMatch[1]) : null;
+      const pcVal = pcMatch ? parseNum(pcMatch[1]) : null;
+
+      if (estMatch && estVal !== null) {
+        const unit = estMatch[2] ? estMatch[2].toLowerCase() : '';
+        if (unit === 'm' || (estVal > 0 && estVal <= 3)) {
+          estVal = estVal * 100;
+        }
+      }
+
+      const prefix = sexo === 'M' ? 'M_' : 'F_';
+      let output = '';
+      const medidas = [];
+
+function processMedida(rotulo, tipo, valor, unidade, tentativas) {
+      let matchEncontrado = null;
+      let refEscolhida = null;
+      let sheetEscolhida = null;
+
+      // 1ª tentativa: Busca exata dentro da faixa etária nativa da curva (sem extrapolar)
+      for (const t of tentativas) {
+        const lms = getLmsFromTable(t.sheet, mesesIdade, false);
+        if (lms) {
+          matchEncontrado = lms;
+          refEscolhida = t.ref;
+          sheetEscolhida = t.sheet;
+          break;
+        }
+      }
+
+      // 2ª tentativa: Se não coube na faixa nativa, tenta extrapolar
+      // REGRA DE OURO CLÍNICA: a extrapolação deve sempre usar a referência
+      // cujos dados alcançam idades mais distantes na direção necessária
+      // (maior teto para pacientes mais velhos, menor piso para mais novos),
+      // e não uma referência fixa por nome.
+      if (!matchEncontrado) {
+        let melhorTentativa = null;
+        let melhorLimite = null;
+
+        for (const t of tentativas) {
+          const range = getTableRange(t.sheet);
+          if (!range) continue;
+
+          if (mesesIdade > range.max) {
+            // Paciente mais velho que a tabela: queremos a referência com o MAIOR teto
+            if (melhorLimite === null || range.max > melhorLimite) {
+              melhorLimite = range.max;
+              melhorTentativa = t;
+            }
+          } else if (mesesIdade < range.min) {
+            // Paciente mais novo que a tabela: queremos a referência com o MENOR piso
+            if (melhorLimite === null || range.min < melhorLimite) {
+              melhorLimite = range.min;
+              melhorTentativa = t;
+            }
+          }
+        }
+
+        if (melhorTentativa) {
+          const lms = getLmsFromTable(melhorTentativa.sheet, mesesIdade, true);
+          if (lms) {
+            matchEncontrado = lms;
+            refEscolhida = melhorTentativa.ref;
+            sheetEscolhida = melhorTentativa.sheet;
+          }
+        }
+      }
+
+      if (matchEncontrado) {
+        const z = calculateZ(valor, matchEncontrado);
+        const curva = getCurveFromTable(sheetEscolhida);
+        const extrapolado = matchEncontrado.isExtrapolado;
+
+        medidas.push({
+          tipo: tipo,
+          valor: valor,
+          unidade: unidade,
+          z: z,
+          percentil: zToPercentile(z),
+          refUsada: refEscolhida,
+          isExtrapolado: extrapolado,
+          maxMonth: matchEncontrado.maxMonth,
+          link: referenceLink(refEscolhida, tipo),
+          curva: curva
+        });
+
+        const tagExtrap = extrapolado ? ` (extrapolado de ${matchEncontrado.maxMonth}m)` : '';
+        return `${rotulo}: ${valor} ${unidade} (${zToPercentile(z)} | Z: ${formatZ(z)} [${refEscolhida}${tagExtrap}])\n`;
+      }
+
+      medidas.push({ tipo: tipo, valor: valor, unidade: unidade, z: null, percentil: "N/D", refUsada: null, isExtrapolado: false, link: null, curva: [] });
+      return `${rotulo}: ${valor} ${unidade} (Referência não disponível)\n`;
+    }
+      if (pesoVal !== null) {
+        output += processMedida("P", "Peso", pesoVal, "kg", [
+          { sheet: prefix + "Peso", ref: "OMS" },
+          { sheet: prefix + "Peso_CDC", ref: "CDC" }
+        ]);
+      }
+
+      if (estVal !== null) {
+        output += processMedida("E", "Estatura", estVal, "cm", [
+          { sheet: prefix + "Estatura", ref: "OMS" },
+          { sheet: prefix + "Estatura_CDC", ref: "CDC" }
+        ]);
+      }
+
+      if (pcVal !== null) {
+        output += processMedida("PC", "Perímetro Cefálico", pcVal, "cm", [
+          { sheet: prefix + "PC", ref: "OMS" },
+          { sheet: prefix + "PC_EXT", ref: "Nellhaus" }
+        ]);
+      }
+
+      document.getElementById('output').value = output.trim();
+      document.getElementById('result-area').style.display = 'block';
+      renderFeedback(mesesIdade, formatIdade(mesesIdade), medidas, dataReferencia);
+    }
+
+    function copyOutput() {
+      const outputTxt = document.getElementById('output');
+      outputTxt.select();
+      outputTxt.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(outputTxt.value).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        const oldText = btn.innerHTML;
+        btn.innerHTML = 'Copiado';
+        btn.style.backgroundColor = 'var(--primary)';
+        setTimeout(() => {
+          btn.innerHTML = oldText;
+          btn.style.backgroundColor = '';
+        }, 1500);
+      });
+    }
+
+    function renderFeedback(mesesIdade, idadeTexto, medidas, dataReferencia) {
+      const feedbackDiv = document.getElementById('feedback-area');
+      feedbackDiv.innerHTML = '';
+
+      const titulo = document.createElement('h3');
+      titulo.innerHTML = 'Gráficos e Detalhamento de Referências';
+      feedbackDiv.appendChild(titulo);
+
+      const idadeBox = document.createElement('div');
+      idadeBox.className = 'idade-info';
+      const dataRefTexto = dataReferencia
+        ? dataReferencia.toLocaleDateString('pt-BR')
+        : null;
+      idadeBox.innerHTML = `<strong>Idade cronológica considerada:</strong> ${mesesIdade} meses (${idadeTexto})` +
+        (dataRefTexto ? `<br><strong>Data das medidas:</strong> ${dataRefTexto}` : '');
+      feedbackDiv.appendChild(idadeBox);
+
+      medidas.forEach(med => {
+        const box = document.createElement('div');
+        box.className = 'medida-box';
+
+        const header = document.createElement('div');
+        header.className = 'medida-header';
+
+        const tituloMed = document.createElement('div');
+        tituloMed.className = 'medida-titulo';
+        tituloMed.innerHTML = `${med.tipo}: ${med.valor} ${med.unidade} <span style="font-weight:normal; color:var(--text-muted);">(${med.percentil} | Z: ${formatZ(med.z)})</span>`;
+        header.appendChild(tituloMed);
+
+        if (med.refUsada) {
+          const badge = document.createElement('span');
+          badge.className = 'medida-badge ' + (med.isExtrapolado ? 'badge-extrapolado' : 'badge-normal');
+          badge.innerText = med.isExtrapolado 
+            ? `Extrapolado (Teto ${med.maxMonth}m)` 
+            : `Referência ${med.refUsada}`;
+          header.appendChild(badge);
+        }
+        box.appendChild(header);
+
+        if (med.link) {
+          const link = document.createElement('a');
+          link.href = med.link;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.className = 'ref-link';
+          link.innerHTML = `Documentação da curva (${med.refUsada}) ↗`;
+          box.appendChild(link);
+        }
+
+        if (med.curva && med.curva.length > 1 && med.z !== null) {
+          const chartWrap = document.createElement('div');
+          chartWrap.className = 'chart-container';
+          chartWrap.innerHTML = buildCurveSVG(med.curva, mesesIdade, med.valor, med.isExtrapolado);
+          box.appendChild(chartWrap);
+        }
+
+        feedbackDiv.appendChild(box);
+      });
+
+      feedbackDiv.style.display = 'block';
+    }
+
+    function buildCurveSVG(curva, mesesIdade, valorPaciente, isExtrapolado) {
+      const width = 560, height = 220, padX = 40, padY = 28;
+
+      let xMin = curva[0].mes, xMax = curva[curva.length - 1].mes;
+      if (xMin === xMax) xMax = xMin + 1;
+
+      let yMin = Infinity, yMax = -Infinity;
+      curva.forEach(p => {
+        if (p.p3 !== null) { yMin = Math.min(yMin, p.p3); yMax = Math.max(yMax, p.p3); }
+        if (p.p97 !== null) { yMin = Math.min(yMin, p.p97); yMax = Math.max(yMax, p.p97); }
+      });
+      if (valorPaciente !== null && valorPaciente !== undefined) {
+        yMin = Math.min(yMin, valorPaciente);
+        yMax = Math.max(yMax, valorPaciente);
+      }
+      if (!isFinite(yMin) || !isFinite(yMax)) return '';
+      if (yMin === yMax) { yMin -= 1; yMax += 1; }
+
+      const margem = (yMax - yMin) * 0.1;
+      yMin -= margem;
+      yMax += margem;
+
+      const mapX = mes => {
+        const clamped = Math.max(xMin, Math.min(xMax, mes));
+        return padX + ((clamped - xMin) / (xMax - xMin)) * (width - 2 * padX);
+      };
+      const mapY = val => height - padY - ((val - yMin) / (yMax - yMin)) * (height - 2 * padY);
+
+      const pathFor = key => {
+        return curva
+          .filter(p => p[key] !== null && p[key] !== undefined)
+          .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${mapX(p.mes).toFixed(1)} ${mapY(p[key]).toFixed(1)}`)
+          .join(' ');
+      };
+
+      const px = mapX(mesesIdade);
+      const py = mapY(valorPaciente);
+      const foraDaFaixa = mesesIdade > xMax || mesesIdade < xMin || isExtrapolado;
+      const corPonto = foraDaFaixa ? 'var(--warning)' : 'var(--danger)';
+
+      const svg = `
+        <svg viewBox="0 0 ${width} ${height}" width="100%" style="display:block;">
+          <rect x="0" y="0" width="${width}" height="${height}" fill="#f8fafc" rx="4"/>
+          <rect x="${padX}" y="${padY}" width="${width - 2*padX}" height="${height - 2*padY}" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+          
+          <line x1="${padX}" y1="${mapY((yMin+yMax)/2)}" x2="${width-padX}" y2="${mapY((yMin+yMax)/2)}" stroke="#f1f5f9" stroke-width="1"/>
+          
+          <path d="${pathFor('p3')}" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <path d="${pathFor('p50')}" fill="none" stroke="#3b82f6" stroke-width="2"/>
+          <path d="${pathFor('p97')}" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
+          
+          <line x1="${px.toFixed(1)}" y1="${padY}" x2="${px.toFixed(1)}" y2="${height - padY}" stroke="${corPonto}" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
+          <line x1="${padX}" y1="${py.toFixed(1)}" x2="${width - padX}" y2="${py.toFixed(1)}" stroke="${corPonto}" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
+          <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="5" fill="${corPonto}" stroke="#ffffff" stroke-width="1.5"/>
+          
+          <text x="${padX}" y="${height - 8}" font-size="10" fill="#64748b" font-weight="600">${xMin}m</text>
+          <text x="${width - padX - 24}" y="${height - 8}" font-size="10" fill="#64748b" font-weight="600">${xMax}m</text>
+          
+          <text x="${padX - 28}" y="${mapY(curva[0].p97) + 3}" font-size="9" fill="#64748b" font-weight="600">p97</text>
+          <text x="${padX - 28}" y="${mapY(curva[0].p50) + 3}" font-size="9" fill="#3b82f6" font-weight="700">p50</text>
+          <text x="${padX - 28}" y="${mapY(curva[0].p3) + 3}" font-size="9" fill="#64748b" font-weight="600">p3</text>
+        </svg>
+      `;
+
+      const legenda = foraDaFaixa
+        ? '<strong>Medida Extrapolada:</strong> A idade excede o limite desta referência. O cálculo considerou o desvio e a mediana do teto cronológico.'
+        : 'Ponto marcador: paciente. Linha azul: mediana (p50). Linhas tracejadas: percentis 3 e 97.';
+
+      return svg + `<div class="curve-caption">${legenda}</div>`;
+    }
+  </script>
+
+
+</body></html>
