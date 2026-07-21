@@ -324,7 +324,7 @@
 
       <div class="form-group">
         <label for="paciente">Data de Nascimento:</label>
-        <textarea id="paciente" rows="2" placeholder="Cole a data de nascimento ou qualquer texto que a contenha. A data de nascimento (ex: DD/MM/AAAA) será detectada automaticamente."></textarea>
+        <textarea id="paciente" rows="2" placeholder="Cole a data de nascimento (ex: DD/MM/AAAA) ou qualquer texto que a contenha."></textarea>
       </div>
 
       <div class="form-group">
@@ -867,7 +867,7 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
           curva: curva
         });
 
-        const tagExtrap = extrapolado ? ` (extrapolado de ${matchEncontrado.maxMonth}m)` : '';
+        const tagExtrap = extrapolado ? ` (${matchEncontrado.maxMonth}m)` : '';
         return `${rotulo}: ${valor} ${unidade} (${zToPercentile(z)} | Z: ${formatZ(z)} [${refEscolhida}${tagExtrap}])\n`;
       }
 
