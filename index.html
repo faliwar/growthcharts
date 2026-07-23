@@ -342,7 +342,7 @@ PC: 52 cm"></textarea>
 
       <div class="result-area" id="result-area">
         <label for="output">Dados Processados para Prontuário:</label>
-        <textarea id="output" rows="3" readonly=""></textarea>
+        <textarea id="output" rows="5" readonly=""></textarea>
         <div class="btn-group" style="margin-top: 10px;">
           <button class="copy-btn" onclick="copyOutput()">Copiar Resultado</button>
         </div>
@@ -350,6 +350,9 @@ PC: 52 cm"></textarea>
 
       <!-- Análise Estatística / Gráficos -->
       <div class="feedback-area" id="feedback-area"></div>
+    </div>
+    <div style="text-align: center; font-size: 0.78rem; color: var(--text-muted); margin-top: 16px; margin-bottom: 24px;">
+      © 2026 Fabiano Poswar
     </div>
   </div>
 
@@ -548,7 +551,7 @@ PC: 52 cm"></textarea>
       return { min: minMonth, max: maxMonth };
     }
 
-    function getCurveFromTable(sheetName) {
+    function getCurveFromTable(sheetName, filterIdade = null, isWFL = false) {
       const data = DB_PERCENTIS[sheetName];
       if (!data) return [];
       const pontos = [];
@@ -575,14 +578,27 @@ PC: 52 cm"></textarea>
 
       pontos.sort((a, b) => a.mes - b.mes);
 
-      const MAX_PONTOS = 45;
-      if (pontos.length <= MAX_PONTOS) return pontos;
+      let pontosFiltrados = pontos;
+      if (!isWFL && filterIdade !== null) {
+        if (filterIdade <= 24) {
+          pontosFiltrados = pontos.filter(p => p.mes <= 24);
+        } else if (filterIdade <= 60) {
+          pontosFiltrados = pontos.filter(p => p.mes > 24 && p.mes <= 60);
+          if (pontosFiltrados.length === 0) pontosFiltrados = pontos.filter(p => p.mes <= 60);
+        } else {
+          pontosFiltrados = pontos.filter(p => p.mes > 60);
+          if (pontosFiltrados.length === 0) pontosFiltrados = pontos;
+        }
+      }
 
-      const passo = Math.ceil(pontos.length / MAX_PONTOS);
+      const MAX_PONTOS = 45;
+      if (pontosFiltrados.length <= MAX_PONTOS) return pontosFiltrados;
+
+      const passo = Math.ceil(pontosFiltrados.length / MAX_PONTOS);
       const reduzido = [];
-      for (let i = 0; i < pontos.length; i += passo) reduzido.push(pontos[i]);
-      if (reduzido[reduzido.length - 1] !== pontos[pontos.length - 1]) {
-        reduzido.push(pontos[pontos.length - 1]);
+      for (let i = 0; i < pontosFiltrados.length; i += passo) reduzido.push(pontosFiltrados[i]);
+      if (reduzido[reduzido.length - 1] !== pontosFiltrados[pontosFiltrados.length - 1]) {
+        reduzido.push(pontosFiltrados[pontosFiltrados.length - 1]);
       }
       return reduzido;
     }
@@ -774,7 +790,10 @@ PC: 52 cm"></textarea>
         return;
       }
 
-      const pesoVal = pesoMatch ? parseNum(pesoMatch[1]) : null;
+      let pesoVal = pesoMatch ? parseNum(pesoMatch[1]) : null;
+      if (pesoVal !== null && pesoVal > 500) {
+        pesoVal = pesoVal / 1000;
+      }
       let estVal = estMatch ? parseNum(estMatch[1]) : null;
       const pcVal = pcMatch ? parseNum(pcMatch[1]) : null;
 
@@ -795,14 +814,15 @@ PC: 52 cm"></textarea>
       let output = '';
       const medidas = [];
 
-function processMedida(rotulo, tipo, valor, unidade, tentativas) {
+function processMedida(rotulo, tipo, valor, unidade, tentativas, customX = null, isWFL = false) {
+      const targetX = customX !== null ? customX : mesesIdade;
       let matchEncontrado = null;
       let refEscolhida = null;
       let sheetEscolhida = null;
 
       // 1ª tentativa: Busca exata dentro da faixa etária nativa da curva (sem extrapolar)
       for (const t of tentativas) {
-        const lms = getLmsFromTable(t.sheet, mesesIdade, false);
+        const lms = getLmsFromTable(t.sheet, targetX, false);
         if (lms) {
           matchEncontrado = lms;
           refEscolhida = t.ref;
@@ -824,13 +844,13 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
           const range = getTableRange(t.sheet);
           if (!range) continue;
 
-          if (mesesIdade > range.max) {
+          if (targetX > range.max) {
             // Paciente mais velho que a tabela: queremos a referência com o MAIOR teto
             if (melhorLimite === null || range.max > melhorLimite) {
               melhorLimite = range.max;
               melhorTentativa = t;
             }
-          } else if (mesesIdade < range.min) {
+          } else if (targetX < range.min) {
             // Paciente mais novo que a tabela: queremos a referência com o MENOR piso
             if (melhorLimite === null || range.min < melhorLimite) {
               melhorLimite = range.min;
@@ -840,7 +860,7 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
         }
 
         if (melhorTentativa) {
-          const lms = getLmsFromTable(melhorTentativa.sheet, mesesIdade, true);
+          const lms = getLmsFromTable(melhorTentativa.sheet, targetX, true);
           if (lms) {
             matchEncontrado = lms;
             refEscolhida = melhorTentativa.ref;
@@ -851,7 +871,7 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
 
       if (matchEncontrado) {
         const z = calculateZ(valor, matchEncontrado);
-        const curva = getCurveFromTable(sheetEscolhida);
+        const curva = getCurveFromTable(sheetEscolhida, isWFL ? null : mesesIdade, isWFL);
         const extrapolado = matchEncontrado.isExtrapolado;
 
         medidas.push({
@@ -864,14 +884,16 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
           isExtrapolado: extrapolado,
           maxMonth: matchEncontrado.maxMonth,
           link: referenceLink(refEscolhida, tipo),
-          curva: curva
+          curva: curva,
+          isWFL: isWFL,
+          xAxisValue: targetX
         });
 
-        const tagExtrap = extrapolado ? ` (${matchEncontrado.maxMonth}m)` : '';
+        const tagExtrap = extrapolado ? ` (${matchEncontrado.maxMonth}${isWFL ? 'cm' : 'm'})` : '';
         return `${rotulo}: ${valor} ${unidade} (${zToPercentile(z)} | Z: ${formatZ(z)} [${refEscolhida}${tagExtrap}])\n`;
       }
 
-      medidas.push({ tipo: tipo, valor: valor, unidade: unidade, z: null, percentil: "N/D", refUsada: null, isExtrapolado: false, link: null, curva: [] });
+      medidas.push({ tipo: tipo, valor: valor, unidade: unidade, z: null, percentil: "N/D", refUsada: null, isExtrapolado: false, link: null, curva: [], isWFL: false, xAxisValue: null });
       return `${rotulo}: ${valor} ${unidade} (Referência não disponível)\n`;
     }
       let forceCDC = false;
@@ -897,7 +919,7 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
         output += processMedida("E", "Estatura", estVal, "cm", tentEst);
       }
 
-      if (imcVal !== null) {
+      if (imcVal !== null && mesesIdade >= 24) {
         let tentIMC = [
           { sheet: prefix + "IMC", ref: "OMS" },
           { sheet: prefix + "IMC_CDC", ref: "CDC" }
@@ -905,6 +927,14 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
         if (forceCDC) tentIMC.reverse();
         output += processMedida("IMC", "IMC", imcVal, "kg/m²", tentIMC);
       }
+
+      if (pesoVal !== null && estVal !== null && mesesIdade < 24) {
+        let tentWFL = [
+          { sheet: prefix + "WFL", ref: "OMS" }
+        ];
+        output += processMedida("P/E", "Peso por Comprimento", pesoVal, "kg / " + estVal + " cm", tentWFL, estVal, true);
+      }
+
       if (pcVal !== null) {
         output += processMedida("PC", "Perímetro Cefálico", pcVal, "cm", [
           { sheet: prefix + "PC", ref: "OMS" },
@@ -985,7 +1015,7 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
         if (med.curva && med.curva.length > 1 && med.z !== null) {
           const chartWrap = document.createElement('div');
           chartWrap.className = 'chart-container';
-          chartWrap.innerHTML = buildCurveSVG(med.curva, mesesIdade, med.valor, med.isExtrapolado);
+          chartWrap.innerHTML = buildCurveSVG(med.curva, med.xAxisValue, med.valor, med.isExtrapolado, med.isWFL);
           box.appendChild(chartWrap);
         }
 
@@ -995,7 +1025,7 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
       feedbackDiv.style.display = 'block';
     }
 
-    function buildCurveSVG(curva, mesesIdade, valorPaciente, isExtrapolado) {
+    function buildCurveSVG(curva, xAxisValue, valorPaciente, isExtrapolado, isWFL) {
       const width = 560, height = 220, padX = 40, padY = 28;
 
       let xMin = curva[0].mes, xMax = curva[curva.length - 1].mes;
@@ -1030,45 +1060,45 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
           .join(' ');
       };
 
-      const px = mapX(mesesIdade);
+      const px = mapX(xAxisValue);
       const py = mapY(valorPaciente);
-      const foraDaFaixa = mesesIdade > xMax || mesesIdade < xMin || isExtrapolado;
+      const foraDaFaixa = xAxisValue > xMax || xAxisValue < xMin || isExtrapolado;
       const corPonto = foraDaFaixa ? 'var(--warning)' : 'var(--danger)';
 
       const svg = `
         <svg viewBox="0 0 ${width} ${height}" width="100%" style="display:block; cursor:crosshair;"
              data-curva='${JSON.stringify(curva).replace(/'/g, "&apos;")}' 
-             data-xmin="${xMin}" data-xmax="${xMax}" data-ymin="${yMin}" data-ymax="${yMax}"
+             data-xmin="${xMin}" data-xmax="${xMax}" data-ymin="${yMin}" data-ymax="${yMax}" data-iswfl="${isWFL}"
              onmousemove="handleChartHover(event, this)" onmouseleave="handleChartLeave(this)">
           <rect x="0" y="0" width="${width}" height="${height}" fill="#f8fafc" rx="4"/>
           <rect x="${padX}" y="${padY}" width="${width - 2*padX}" height="${height - 2*padY}" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
           
           <line x1="${padX}" y1="${mapY((yMin+yMax)/2)}" x2="${width-padX}" y2="${mapY((yMin+yMax)/2)}" stroke="#f1f5f9" stroke-width="1"/>
           
-          <path d="${pathFor('p3')}" fill="none" stroke="#cbd5e1" stroke-width="1"/>
-          <path d="${pathFor('p15')}" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
-          <path d="${pathFor('p50')}" fill="none" stroke="#3b82f6" stroke-width="2"/>
-          <path d="${pathFor('p85')}" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
-          <path d="${pathFor('p97')}" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+          <path d="${pathFor('p3')}" fill="none" stroke="#dc2626" stroke-width="1.5"/>
+          <path d="${pathFor('p15')}" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <path d="${pathFor('p50')}" fill="none" stroke="#15803d" stroke-width="2"/>
+          <path d="${pathFor('p85')}" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <path d="${pathFor('p97')}" fill="none" stroke="#dc2626" stroke-width="1.5"/>
           
           <line x1="${px.toFixed(1)}" y1="${padY}" x2="${px.toFixed(1)}" y2="${height - padY}" stroke="${corPonto}" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
           <line x1="${padX}" y1="${py.toFixed(1)}" x2="${width - padX}" y2="${py.toFixed(1)}" stroke="${corPonto}" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
           <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="5" fill="${corPonto}" stroke="#ffffff" stroke-width="1.5"/>
           
-          <text x="${padX}" y="${height - 8}" font-size="10" fill="#64748b" font-weight="600">${xMin}m</text>
-          <text x="${width - padX - 24}" y="${height - 8}" font-size="10" fill="#64748b" font-weight="600">${xMax}m</text>
+          <text x="${padX}" y="${height - 8}" font-size="10" fill="#64748b" font-weight="600">${xMin}${isWFL ? 'cm' : 'm'}</text>
+          <text x="${width - padX - 24}" y="${height - 8}" font-size="10" fill="#64748b" font-weight="600">${xMax}${isWFL ? 'cm' : 'm'}</text>
           
-          <text x="${padX - 28}" y="${mapY(curva[0].p97) + 3}" font-size="9" fill="#cbd5e1" font-weight="600">p97</text>
-          <text x="${padX - 28}" y="${mapY(curva[0].p85) + 3}" font-size="9" fill="#94a3b8" font-weight="600">p85</text>
-          <text x="${padX - 28}" y="${mapY(curva[0].p50) + 3}" font-size="9" fill="#3b82f6" font-weight="700">p50</text>
-          <text x="${padX - 28}" y="${mapY(curva[0].p15) + 3}" font-size="9" fill="#94a3b8" font-weight="600">p15</text>
-          <text x="${padX - 28}" y="${mapY(curva[0].p3) + 3}" font-size="9" fill="#cbd5e1" font-weight="600">p3</text>
+          <text x="${padX - 28}" y="${mapY(curva[0].p97) + 3}" font-size="9" fill="#dc2626" font-weight="600">p97</text>
+          <text x="${padX - 28}" y="${mapY(curva[0].p85) + 3}" font-size="9" fill="#f59e0b" font-weight="600">p85</text>
+          <text x="${padX - 28}" y="${mapY(curva[0].p50) + 3}" font-size="9" fill="#15803d" font-weight="700">p50</text>
+          <text x="${padX - 28}" y="${mapY(curva[0].p15) + 3}" font-size="9" fill="#f59e0b" font-weight="600">p15</text>
+          <text x="${padX - 28}" y="${mapY(curva[0].p3) + 3}" font-size="9" fill="#dc2626" font-weight="600">p3</text>
         </svg>
       `;
 
       const legenda = foraDaFaixa
-        ? '<strong>Medida Extrapolada:</strong> A idade excede o limite desta referência. O cálculo considerou o desvio e a mediana do teto cronológico.'
-        : 'Ponto marcador: paciente. Linha azul: mediana (p50). Linhas tracejadas: percentis 3 e 97.';
+        ? '<strong>Medida Extrapolada:</strong> A medida excede o limite desta referência. O cálculo considerou o desvio e a mediana do limite tabelado.'
+        : 'Ponto marcador: paciente. Linha verde: mediana (p50). Linhas laranjas: p15/p85. Linhas vermelhas: p3/p97.';
 
       return svg + `<div class="curve-caption">${legenda}</div>`;
     }
@@ -1145,12 +1175,12 @@ function processMedida(rotulo, tipo, valor, unidade, tentativas) {
       
       const textGroup = tooltip.querySelector("text");
       textGroup.innerHTML = `
-        <tspan x="6" dy="14" font-weight="bold">${mesAtMouse.toFixed(1)} meses</tspan>
-        <tspan x="6" dy="13" fill="#64748b">p97: ${p97.toFixed(2)}</tspan>
-        <tspan x="6" dy="12" fill="#64748b">p85: ${p85.toFixed(2)}</tspan>
-        <tspan x="6" dy="12" font-weight="bold" fill="#3b82f6">p50: ${p50.toFixed(2)}</tspan>
-        <tspan x="6" dy="12" fill="#64748b">p15: ${p15.toFixed(2)}</tspan>
-        <tspan x="6" dy="12" fill="#64748b">p3: ${p3.toFixed(2)}</tspan>
+        <tspan x="6" dy="14" font-weight="bold">${mesAtMouse.toFixed(1)} ${svgElement.getAttribute('data-iswfl') === 'true' ? 'cm' : 'meses'}</tspan>
+        <tspan x="6" dy="13" fill="#dc2626">p97: ${p97.toFixed(2)}</tspan>
+        <tspan x="6" dy="12" fill="#f59e0b">p85: ${p85.toFixed(2)}</tspan>
+        <tspan x="6" dy="12" font-weight="bold" fill="#15803d">p50: ${p50.toFixed(2)}</tspan>
+        <tspan x="6" dy="12" fill="#f59e0b">p15: ${p15.toFixed(2)}</tspan>
+        <tspan x="6" dy="12" fill="#dc2626">p3: ${p3.toFixed(2)}</tspan>
       `;
       
       let toolX = mouseX + 10;
