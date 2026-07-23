@@ -1,11 +1,11 @@
 # Growth Charts Calculator
 
-[![GitHub top language](https://img.shields.io/github/languages/top/fposwar/growthcharts?style=flat-square&color=blue)](https://github.com/fposwar/growthcharts)
-[![GitHub license](https://img.shields.io/github/license/fposwar/growthcharts?style=flat-square)](LICENSE)
-[![GitHub repo size](https://img.shields.io/github/repo-size/fposwar/growthcharts?style=flat-square)](https://github.com/fposwar/growthcharts)
-[![GitHub stars](https://img.shields.io/github/stars/fposwar/growthcharts?style=flat-square)](https://github.com/fposwar/growthcharts/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/fposwar/growthcharts?style=flat-square)](https://github.com/fposwar/growthcharts/network/members)
-[![GitHub issues](https://img.shields.io/github/issues/fposwar/growthcharts?style=flat-square)](https://github.com/fposwar/growthcharts/issues)
+[![GitHub top language](https://img.shields.io/github/languages/top/faliwar/growthcharts?style=flat-square&color=blue)](https://github.com/faliwar/growthcharts)
+[![GitHub license](https://img.shields.io/github/license/faliwar/growthcharts?style=flat-square)](LICENSE)
+[![GitHub repo size](https://img.shields.io/github/repo-size/faliwar/growthcharts?style=flat-square)](https://github.com/faliwar/growthcharts)
+[![GitHub stars](https://img.shields.io/github/stars/faliwar/growthcharts?style=flat-square)](https://github.com/faliwar/growthcharts/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/faliwar/growthcharts?style=flat-square)](https://github.com/faliwar/growthcharts/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/faliwar/growthcharts?style=flat-square)](https://github.com/faliwar/growthcharts/issues)
 
 An anthropological growth calculator optimized for Electronic Health Records (EHR) / medical records. This application calculates percentiles and Z-scores for child and adolescent development based on international standards (WHO/OMS, CDC, and Nellhaus).
 
